@@ -1,0 +1,7 @@
+target/
+site/*.csv
+site/*.html
+site/*/*
+.bsp
+
+/src/main/resources/prices/pvpc2*.csv
