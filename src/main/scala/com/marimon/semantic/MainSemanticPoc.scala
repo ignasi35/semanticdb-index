@@ -17,10 +17,14 @@ import scala.meta.internal.semanticdb.ValueSignature
 class SemanticDbReader(documents: Array[TextDocuments]) {
   private val textDocuments = documents.flatMap(_.documents)
 
-  private def typeName(t:Type): Option[String] = {
+  private def typeName(t:Type): List[String] = {
     t match {
-      case Type.Empty => None
-      case tr:TypeRef => Some(tr.symbol)
+      case Type.Empty => Nil
+      case tr:TypeRef =>
+        tr.typeArguments.toList match {
+          case Nil => List(tr.symbol)
+          case l => l.flatMap(typeName)
+        }
       case at:AnnotatedType => typeName(at.tpe)
       // other return types
     }
@@ -30,7 +34,7 @@ class SemanticDbReader(documents: Array[TextDocuments]) {
     "notifyAll", "wait", "copy", "clone", "finalize", "productArity", "productElement",
     "writeReplace", "unapply", "canEqual", "productPrefix", "productIterator", "productElementName",
     "apply", "copy$default$1", "copy$default$2", "copy$default$3", "copy$default$4", "copy$default$5",
-    "local1", "local2", "local3", "local4", "local5",
+    "local1", "local2", "local3", "local4", "local5", "local6", "local7",
     "<init>", "`<init>`"
   )
   private val ignoredAsFullName = ignored.map(_ + "().")
@@ -43,17 +47,14 @@ class SemanticDbReader(documents: Array[TextDocuments]) {
             Seq.empty
           else {
             val methodName = symbol.symbol
-            val returnTypeDep: Option[(String, String)] = typeName(ms.returnType).map(returnType => (methodName -> returnType))
+            val returnTypeDep: List[(String, String)] = typeName(ms.returnType).map(returnType => (methodName -> returnType))
 
             val parametersDep: Seq[(String, String)] = ms.parameterLists.flatMap{ scope =>
               val symlinks = scope.symlinks
               symlinks.map(link => (methodName-> link))
             }
 
-            if(returnTypeDep.isDefined)
-              parametersDep :+ returnTypeDep.get
-            else
-              parametersDep
+            parametersDep :++ returnTypeDep
           }
         }
         case cs: ClassSignature =>
@@ -70,8 +71,7 @@ class SemanticDbReader(documents: Array[TextDocuments]) {
           if(ignored.exists(valueName.contains)) {
             Seq.empty
           } else {
-            val valueType = typeName(vs.tpe).get
-            Seq((valueName -> valueType))
+            typeName(vs.tpe).map(valueType => (valueName -> valueType))
           }
         //        case ts: TypeSignature => ???
         case _ => Seq.empty
@@ -81,13 +81,7 @@ class SemanticDbReader(documents: Array[TextDocuments]) {
 
   private val codeGraph =  DirectedGraph(edges)
 
-  def findContainers(sut: String) :Set[String] = {
-    codeGraph.dependantsOf(sut)
-  }
-  def findUsage(sut: String) :Set[String] = {
-    println(codeGraph.edges)
-    codeGraph.dependantsOf(sut)
-  }
+  def findUsage(sut: String) :Set[String] = codeGraph.dependantsOf(sut)
 }
 
 object MainSemanticPoc extends App {

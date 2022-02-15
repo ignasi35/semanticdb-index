@@ -9,13 +9,13 @@ import scala.meta.internal.semanticdb.TextDocuments
  */
 class PricingSemanticDbReaderSpec extends AnyFlatSpec with Matchers {
 
-  val folder = "/Users/imarimon/git/github/hopper-org/ImagoMundi/local-repos/clone/"
-  private val documents: Array[TextDocuments] = MainSemanticPoc.loadDocuments(folder)
+  private lazy val folder = "/Users/imarimon/git/github/hopper-org/ImagoMundi/local-repos/clone/"
+  private lazy val documents: Array[TextDocuments] = MainSemanticPoc.loadDocuments(folder)
 
   behavior of "SemanticDbReader"
 
-  it should "locate upstream containers" in {
-    new SemanticDbReader(documents).findContainers(
+  it should "locate upstream containers" ignore {
+    new SemanticDbReader(documents).findUsage(
       "com/hopper/common/model/api/Paris#Pricing"
     ) should contain theSameElementsAs Set(
       // Bar is used in Baz.B

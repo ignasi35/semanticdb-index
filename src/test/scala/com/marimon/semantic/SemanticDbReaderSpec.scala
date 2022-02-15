@@ -13,15 +13,17 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
   private val foobarbaz = baseFolder+"/foobarbaz"
   private val returntypes = baseFolder+"/returntypes"
   private val alphabet = baseFolder+"/alphabet"
+  private val generified = baseFolder+"/generified"
 
   private val documentsfoobarbaz: Array[TextDocuments] = MainSemanticPoc.loadDocuments(foobarbaz)
   private val documentsreturntypes: Array[TextDocuments] = MainSemanticPoc.loadDocuments(returntypes)
   private val documentsalphabet: Array[TextDocuments] = MainSemanticPoc.loadDocuments(alphabet)
+  private val documentsGenerified: Array[TextDocuments] = MainSemanticPoc.loadDocuments(generified)
 
   behavior of "SemanticDbReader"
 
   it should "locate upstream containers" in {
-    new SemanticDbReader(documentsfoobarbaz).findContainers(
+    new SemanticDbReader(documentsfoobarbaz).findUsage(
       "com/marimon/semantic/samples/foobarbaz/Bar#"
     ) should contain theSameElementsAs Set(
       // Bar is used in Baz.B
@@ -70,8 +72,43 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "locate potential usages (PECS!)" ignore {}
+  // TODO: I'm not entirely sure what to detect here. Shoudl I also detect usages of sub-classes of A?
+  it should "locate potential usages (PECS!) - trait" in {
+    new SemanticDbReader(documentsalphabet).findUsage(
+      "com/marimon/semantic/samples/alphabet/A#"
+    )should contain theSameElementsAs Set(
+      "com/marimon/semantic/samples/alphabet/PotentialUsage.producerExtends().(a)",
+      "com/marimon/semantic/samples/alphabet/PotentialUsage.producerExtends().",
+    )
+  }
+  // TODO: I'm not entirely sure what to detect here. Shoudl I also detect usages of sub-classes of A?
+  it should "locate potential usages (PECS!) - trait&subclass" ignore {
+    new SemanticDbReader(documentsalphabet).findUsage(
+      "com/marimon/semantic/samples/alphabet/A#"
+    )should contain theSameElementsAs Set(
+      "com/marimon/semantic/samples/alphabet/PotentialUsage.producerExtends().(a)",
+      "com/marimon/semantic/samples/alphabet/PotentialUsage.producerExtends().",
+      "com/marimon/semantic/samples/alphabet/DirectUsage.directCa().(ca)",
+      "com/marimon/semantic/samples/alphabet/DirectUsage.directCa().",
+    )
+  }
+
+
   it should "locate potential return types on a def or type of a val (PECS!)" ignore {}
   it should "locate downstream contained" ignore {}
+
+
+  it should "follow the dependencies on generic types (Option[Bar], List[Foo],...)" in {
+    new SemanticDbReader(documentsGenerified).findUsage(
+      "com/marimon/semantic/samples/generified/ZipCode#"
+    ) should contain theSameElementsAs Set(
+      "com/marimon/semantic/samples/generified/Address#",
+      "com/marimon/semantic/samples/generified/Address#zip.",
+      "com/marimon/semantic/samples/generified/PersonInfo#",
+      "com/marimon/semantic/samples/generified/PersonInfo#address.",
+      "com/marimon/semantic/samples/generified/User#",
+      "com/marimon/semantic/samples/generified/User#person.",
+    )
+  }
 
 }
