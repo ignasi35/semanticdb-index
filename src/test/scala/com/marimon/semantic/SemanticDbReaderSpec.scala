@@ -15,10 +15,10 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
   private val alphabet = baseFolder+"/alphabet"
   private val generified = baseFolder+"/generified"
 
-  private val documentsfoobarbaz: Array[TextDocuments] = MainSemanticPoc.loadDocuments(foobarbaz)
-  private val documentsreturntypes: Array[TextDocuments] = MainSemanticPoc.loadDocuments(returntypes)
-  private val documentsalphabet: Array[TextDocuments] = MainSemanticPoc.loadDocuments(alphabet)
-  private val documentsGenerified: Array[TextDocuments] = MainSemanticPoc.loadDocuments(generified)
+  private val documentsfoobarbaz: Array[TextDocuments] = SemanticDbReader.load(foobarbaz)
+  private val documentsreturntypes: Array[TextDocuments] = SemanticDbReader.load(returntypes)
+  private val documentsalphabet: Array[TextDocuments] = SemanticDbReader.load(alphabet)
+  private val documentsGenerified: Array[TextDocuments] = SemanticDbReader.load(generified)
 
   behavior of "SemanticDbReader"
 

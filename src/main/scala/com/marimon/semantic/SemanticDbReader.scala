@@ -1,18 +1,26 @@
 package com.marimon.semantic
 
-import java.io.File
 import java.io.FileInputStream
-import java.io.FilenameFilter
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.util.stream
 import scala.meta.internal.semanticdb.AnnotatedType
+import scala.meta.internal.semanticdb.ByNameType
 import scala.meta.internal.semanticdb.ClassSignature
+import scala.meta.internal.semanticdb.ConstantType
+import scala.meta.internal.semanticdb.ExistentialType
 import scala.meta.internal.semanticdb.MethodSignature
-import scala.meta.internal.semanticdb.SymbolInformation
+import scala.meta.internal.semanticdb.RepeatedType
+import scala.meta.internal.semanticdb.SingleType
+import scala.meta.internal.semanticdb.StructuralType
 import scala.meta.internal.semanticdb.TextDocuments
+import scala.meta.internal.semanticdb.ThisType
 import scala.meta.internal.semanticdb.Type
-import scala.meta.internal.semanticdb.Type.NonEmpty
 import scala.meta.internal.semanticdb.TypeRef
-import scala.meta.internal.semanticdb.TypeSignature
+import scala.meta.internal.semanticdb.UniversalType
 import scala.meta.internal.semanticdb.ValueSignature
+import scala.meta.internal.semanticdb.WithType
 
 class SemanticDbReader(documents: Array[TextDocuments]) {
   private val textDocuments = documents.flatMap(_.documents)
@@ -26,6 +34,16 @@ class SemanticDbReader(documents: Array[TextDocuments]) {
           case l => l.flatMap(typeName)
         }
       case at:AnnotatedType => typeName(at.tpe)
+      // untested
+      case st:SingleType => List(st.symbol)
+      case rt:RepeatedType => typeName(rt.tpe)
+      case et:ExistentialType => typeName(et.tpe)
+      case bnt:ByNameType => typeName(bnt.tpe)
+      case st:StructuralType => typeName(st.tpe)
+      case wt:WithType => wt.types.toList.flatMap(typeName)
+      case _:ConstantType => Nil
+      case tt:ThisType => List(tt.symbol)
+      case ut:UniversalType => typeName(ut.tpe)
       // other return types
     }
   }
@@ -73,7 +91,7 @@ class SemanticDbReader(documents: Array[TextDocuments]) {
           } else {
             typeName(vs.tpe).map(valueType => (valueName -> valueType))
           }
-        //        case ts: TypeSignature => ???
+        // case ts: TypeSignature => ???
         case _ => Seq.empty
       }
     }
@@ -81,50 +99,32 @@ class SemanticDbReader(documents: Array[TextDocuments]) {
 
   private val codeGraph =  DirectedGraph(edges)
 
-  def findUsage(sut: String) :Set[String] = codeGraph.dependantsOf(sut)
+  def findUsage(sut: String) :Set[String] = {
+    println(s"""Searching usages of $sut in a graph with ${codeGraph.edges.size} edges""")
+    codeGraph.dependantsOf(sut)
+  }
 }
 
-object MainSemanticPoc extends App {
+object SemanticDbReader {
 
-  def loadDocuments(folder:String): Array[TextDocuments] = {
-    val files: Array[File] = new File(folder).listFiles(new FilenameFilter {
-      override def accept(dir: File, name: String): Boolean = {
-        name.endsWith(".semanticdb")
-      }
-    }
-    )
+  import scala.jdk.CollectionConverters._
+
+  private def load(paths: stream.Stream[Path]): Array[TextDocuments] = {
+    val files =
+      paths
+        .iterator()
+        .asScala
+        .map(_.toFile)
+        .filter(_.getName.endsWith(".semanticdb"))
+        .toArray
     files.map(file => {
-      println(s"Parsing ${file.getAbsolutePath}")
       TextDocuments.parseFrom(new FileInputStream(file))
     }
     )
   }
 
-    loadDocuments(new File("./target").getAbsolutePath).take(1)(0).documents.foreach {
-    doc =>
-      doc.symbols
-        .filter {
-          symbol =>
-            symbol.kind.isMethod && symbol.symbol.contains("foo()")
-        }.map {
-        symbol =>
-          val m = symbol.signature match {
-            case ms: MethodSignature => ms
-          }
-          (symbol, m)
-      }.foreach {
-        case (symbol, methodSignature) =>
-          println(
-            s"""
-               |symbol (method): ${symbol.symbol}
-               |return type: ${methodSignature.returnType}
-               |""".stripMargin
-          )
-        //|${methodSignature.returnType.asNonEmpty.get.asInstanceOf[TypeRef].symbol}
-      }
-  }
-  //  textDocument.documents.foreach(_.symbols.foreach(println))
-  //  textDocument.documents.foreach(_.occurrences.foreach(println))
-  //  println(" ............  ")
+  def loadRecursively(folder:String): Array[TextDocuments] = load(Files.walk(Paths.get(folder)))
+
+  def load(folder:String): Array[TextDocuments] = load(Files.list(Paths.get(folder)))
 
 }
