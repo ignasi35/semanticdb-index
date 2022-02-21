@@ -31,7 +31,7 @@ class GraphSpec extends AnyFlatSpec with Matchers {
     DirectedGraph(edges).dependenciesOf("A") must contain theSameElementsAs Set("B", "C", "D", "E" )
   }
 
-  it should "provide dependenats of node A" in {
+  it should "provide dependants of node A" in {
     val edges = Set(
       ("A" -> "B"),
       ("A" -> "C"),
@@ -44,6 +44,18 @@ class GraphSpec extends AnyFlatSpec with Matchers {
     ).map(d => Edge(d))
 
     DirectedGraph(edges).dependantsOf("F") must contain theSameElementsAs Set("A", "D")
+  }
+
+  it should "provide dependants of node  when there's a loop" in {
+    val edges = Set(
+      ("A" -> "B"),
+      ("B" -> "C"),
+      ("C" -> "D"),
+      ("D" -> "B"),
+      ("B" -> "H"),
+    ).map(d => Edge(d))
+
+    DirectedGraph(edges).dependantsOf("H") must contain theSameElementsAs Set("A", "B", "C", "D")
   }
 
 }

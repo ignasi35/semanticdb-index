@@ -1,5 +1,7 @@
 package com.marimon.semantic
 
+import scala.annotation.tailrec
+
 case class Node(name: String)
 case class Edge(from: Node, to: Node) // directed Edge
 object Edge {
@@ -14,9 +16,18 @@ case class DirectedGraph(edges: Set[Edge]){
     val directDependencies: Set[String] = edges.filter(_.from.name == sut).map(_.to.name)
     directDependencies ++ directDependencies.flatMap(dependenciesOf)
   }
-  // TODO: reimplement using memoization, colorings, etc. (make it efficient)
+
   def dependantsOf(sut: String): Set[String] = {
-    val directDependants: Set[String] = edges.filter(_.to.name == sut).map(_.from.name)
-    directDependants ++ directDependants.flatMap(dependantsOf)
+    @tailrec
+    def dep0(newSuts:Set[String], currentDependants: Set[String]) : Set[String] = {
+      val dependantsOfNewSuts = edges.filter(edge => newSuts.contains(edge.to.name)).map(_.from.name)
+      val newFounds = dependantsOfNewSuts.diff(currentDependants)
+      newFounds.size match {
+        case 0 => currentDependants ++ newFounds
+        case _ => dep0(newFounds, currentDependants ++ newFounds)
+      }
+    }
+    dep0(Set(sut),  Set.empty)
+
   }
 }
