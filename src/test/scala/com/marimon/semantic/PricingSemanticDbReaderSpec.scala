@@ -16,9 +16,16 @@ class PricingSemanticDbReaderSpec extends AnyFlatSpec with Matchers {
   behavior of "SemanticDbReader"
 
   it should "locate upstream containers" in {
-    new SemanticDbReader(documents).findUsage(
+    var reader = new SemanticDbReader(documents)
+
+    val usages = reader.findUsage(
       "com/hopper/common/model/api/Paris.Pricing#"
-    ) should contain theSameElementsAs Set(
+    )
+
+
+
+
+    usages should contain theSameElementsAs Set(
       // Bar is used in Baz.B
       "com/marimon/semantic/samples/Baz#b.",
       // ... whic is in Baz

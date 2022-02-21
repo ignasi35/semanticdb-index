@@ -23,6 +23,7 @@ import scala.meta.internal.semanticdb.ValueSignature
 import scala.meta.internal.semanticdb.WithType
 
 class SemanticDbReader(documents: Array[TextDocuments]) {
+
   private val textDocuments = documents.flatMap(_.documents)
 
   private def typeName(t:Type): List[String] = {
@@ -45,26 +46,42 @@ class SemanticDbReader(documents: Array[TextDocuments]) {
       case tt:ThisType => List(tt.symbol)
       case ut:UniversalType => typeName(ut.tpe)
       // other return types
+      //  IntersectionType(_), SuperType(_, _), UnionType(_)
+      case _ => ???
     }
   }
 
   private val ignored = Set("equals", "hashCode", "toString", "getClass", "notify",
     "notifyAll", "wait", "copy", "clone", "finalize", "productArity", "productElement",
     "writeReplace", "unapply", "canEqual", "productPrefix", "productIterator", "productElementName",
-    "apply", "copy$default$1", "copy$default$2", "copy$default$3", "copy$default$4", "copy$default$5",
-    "local1", "local2", "local3", "local4", "local5", "local6", "local7",
-    "<init>", "`<init>`"
-  )
+    "isEqualTo",
+    "apply", "<init>", "`<init>`"
+  ) ++ (
+    (1 to 20).map(i => s"local$i").toSet
+    ) ++ (
+    (1 to 25).flatMap(i => Set(
+      s"copy$$default$$$i",
+      s"`<init>$$default$$$i`",
+      s"<init>$$default$$$i",
+      s"apply$$default$$$i",
+      s"create$$default$$$i",
+    )
+    )
+    )
+
   private val ignoredAsFullName = ignored.map(_ + "().")
 
   private val edges: Set[Edge] = textDocuments.flatMap{ doc=>
     doc.symbols.flatMap{ symbol =>
       symbol.signature match {
         case ms: MethodSignature => {
-          if(ignored.contains(symbol.displayName))
+          val methodName = symbol.symbol
+          val displayName = symbol.displayName
+          // Sometimes the signature has a methodName of `local<number>`. I'm filtering
+          // them all. Usually not too relevant. There's also `local27+1` or `local27+2` or ...
+          if(ignored.contains(displayName) || ignored.contains(methodName) || methodName.matches("local[0-9+]*"))
             Seq.empty
           else {
-            val methodName = symbol.symbol
             val returnTypeDep: List[(String, String)] = typeName(ms.returnType).map(returnType => (methodName -> returnType))
 
             val parametersDep: Seq[(String, String)] = ms.parameterLists.flatMap{ scope =>
@@ -89,7 +106,9 @@ class SemanticDbReader(documents: Array[TextDocuments]) {
           if(ignored.exists(valueName.contains)) {
             Seq.empty
           } else {
-            typeName(vs.tpe).map(valueType => (valueName -> valueType))
+            typeName(vs.tpe).map(valueType =>
+              (valueName -> valueType)
+            )
           }
         // case ts: TypeSignature => ???
         case _ => Seq.empty
@@ -97,12 +116,13 @@ class SemanticDbReader(documents: Array[TextDocuments]) {
     }
   }.toSet.map(Edge.apply)
 
-  private val codeGraph =  DirectedGraph(edges)
+  private var codeGraph: DirectedGraph = DirectedGraph(edges)
 
   def findUsage(sut: String) :Set[String] = {
     println(s"""Searching usages of $sut in a graph with ${codeGraph.edges.size} edges""")
     codeGraph.dependantsOf(sut)
   }
+
 }
 
 object SemanticDbReader {
