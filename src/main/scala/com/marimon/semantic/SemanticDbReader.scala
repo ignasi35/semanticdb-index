@@ -5,6 +5,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.stream
+import scala.collection.mutable
 import scala.meta.internal.semanticdb.AnnotatedType
 import scala.meta.internal.semanticdb.ByNameType
 import scala.meta.internal.semanticdb.ClassSignature
@@ -22,7 +23,7 @@ import scala.meta.internal.semanticdb.UniversalType
 import scala.meta.internal.semanticdb.ValueSignature
 import scala.meta.internal.semanticdb.WithType
 
-class SemanticDbReader(documents: Array[TextDocuments]) {
+class SemanticDbReader(val documents: Array[TextDocuments]) {
 
   private val textDocuments = documents.flatMap(_.documents)
 
@@ -71,22 +72,25 @@ class SemanticDbReader(documents: Array[TextDocuments]) {
 
   private val ignoredAsFullName = ignored.map(_ + "().")
 
-  private val edges: Set[Edge] = textDocuments.flatMap{ doc=>
-    doc.symbols.flatMap{ symbol =>
+  private lazy val reverseReference = mutable.Map.empty[String, Path]
+
+  private lazy val edges: Set[Edge] = textDocuments.flatMap{ doc =>
+    val dependenciesInDoc: Seq[(String, String)] = doc.symbols.flatMap { symbol =>
       symbol.signature match {
         case ms: MethodSignature => {
           val methodName = symbol.symbol
           val displayName = symbol.displayName
           // Sometimes the signature has a methodName of `local<number>`. I'm filtering
           // them all. Usually not too relevant. There's also `local27+1` or `local27+2` or ...
-          if(ignored.contains(displayName) || ignored.contains(methodName) || methodName.matches("local[0-9+]*"))
+          if (ignored.contains(displayName) || ignored.contains(methodName) || methodName.matches("local[0-9+]*"))
             Seq.empty
           else {
-            val returnTypeDep: List[(String, String)] = typeName(ms.returnType).map(returnType => (methodName -> returnType))
+            val returnTypeDep: List[(String, String)] = typeName(ms.returnType)
+              .map(returnType => (methodName -> returnType))
 
-            val parametersDep: Seq[(String, String)] = ms.parameterLists.flatMap{ scope =>
+            val parametersDep: Seq[(String, String)] = ms.parameterLists.flatMap { scope =>
               val symlinks = scope.symlinks
-              symlinks.map(link => (methodName-> link))
+              symlinks.map(link => (methodName -> link))
             }
 
             parametersDep :++ returnTypeDep
@@ -96,14 +100,14 @@ class SemanticDbReader(documents: Array[TextDocuments]) {
           //  In the case of Hello, cs.declarations contains:
           //    "com/marimon/semantic/samples/Hello#foo()."
           val symlinks = cs.declarations.head.symlinks
-          symlinks.map{ symlink => ( symlink -> symlink.split("#"))}
-            .collect{
+          symlinks.map { symlink => (symlink -> symlink.split("#")) }
+            .collect {
               case (symlink, Array(className, methodName)) if !ignoredAsFullName.contains(methodName) =>
-                ( s"$className#" -> symlink)
+                (s"$className#" -> symlink)
             }
         case vs: ValueSignature => // method params also enter this branch
           val valueName = symbol.symbol
-          if(ignored.exists(valueName.contains)) {
+          if (ignored.exists(valueName.contains)) {
             Seq.empty
           } else {
             typeName(vs.tpe).map(valueType =>
@@ -114,13 +118,24 @@ class SemanticDbReader(documents: Array[TextDocuments]) {
         case _ => Seq.empty
       }
     }
+    dependenciesInDoc
+      .map(_._1)
+      .toSet
+      .foreach(k => reverseReference.update(k, Paths.get(doc.uri)))
+    dependenciesInDoc
   }.toSet.map(Edge.apply)
 
-  private var codeGraph: DirectedGraph = DirectedGraph(edges)
+  private lazy val codeGraph: DirectedGraph = DirectedGraph(edges)
 
-  def findUsage(sut: String) :Set[String] = {
+  def findUsage(sut: String) : Set[String]  = {
     println(s"""Searching usages of $sut in a graph with ${codeGraph.edges.size} edges""")
     codeGraph.dependantsOf(sut)
+  }
+
+  def findUsageWithMetadata(sut: String) :(Set[String], Set[Path]) = {
+    val usages = findUsage(sut)
+    val sourcePaths = usages.map(reverseReference).toSet
+    (usages, sourcePaths)
   }
 
 }
