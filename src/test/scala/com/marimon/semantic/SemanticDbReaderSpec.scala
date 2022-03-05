@@ -4,9 +4,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import scala.meta.internal.semanticdb.TextDocuments
 
-/**
- * 
- */
 class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
 
   private val baseFolder = "/Users/imarimon/git/github/ignasi35/semanticdb-index/target/scala-2.13/meta/META-INF/semanticdb/src/main/scala/com/marimon/semantic/samples"
@@ -30,7 +27,7 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
     ) should contain theSameElementsAs Set(
       // Bar is used in Baz.B
       "com/marimon/semantic/samples/foobarbaz/Baz#b.",
-      // ... whic is in Baz
+      // ... which is in Baz
       "com/marimon/semantic/samples/foobarbaz/Baz#",
       // ... which is the return type in foo
       "com/marimon/semantic/samples/foobarbaz/Hello#foo().",
@@ -89,6 +86,9 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
     )
   }
 
+  // TODO: implement
+  it should "locate potential return types on a def or type of a val (PECS!)" ignore {}
+
   it should "follow the dependencies on generic types (Option[Bar], List[Foo],...)" in {
     new SemanticDbReader(documentsGenerified).findSignatureDependencies(
       "com/marimon/semantic/samples/generified/ZipCode#"
@@ -103,7 +103,15 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
   }
 
 
-  // TODO: re-assess this idea. I think I need a different graph of invocations and pattern matching and other cases.
+  // TODO: re-assess this idea. I think I need a different graph of invocations, pattern matchings and other cases.
+  // If I want to detect when some code in a class X invokes a method on object Y, as in:
+  //
+  //  class X(){
+  //    val y = Y.doStuff()
+  //  }
+  //
+  // I need to improve the semanticDb reader. There is a dependency between X and Y but it's hidden on that static
+  // invocation.
   it should "ignore invocations and instantiations" ignore {
     new SemanticDbReader(documentsalphabet).findSignatureDependencies(
       "com/marimon/semantic/samples/alphabet/I#"
@@ -114,16 +122,17 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "locate potential return types on a def or type of a val (PECS!)" ignore {}
-
   // -------------------------------------------------------------------------------------
+
   behavior of "SemanticDbReader.findDownstreamContained"
+
+  // TODO: implement
   it should "locate downstream contained" ignore {}
 
   // -------------------------------------------------------------------------------------
   behavior of "SemanticDbReader.findGraphTo"
   it should "provide the whole graph of usages" in {
-    new SemanticDbReader(documentsalphabet).findGraphTo(
+    new SemanticDbReader(documentsalphabet).findSignatureGraphTo(
       "com/marimon/semantic/samples/alphabet/I#"
     ) should contain theSameElementsAs Set(
       Edge(from = Node("com/marimon/semantic/samples/alphabet/OtherClass#usage().(i)") , to = Node("com/marimon/semantic/samples/alphabet/I#")),
@@ -137,7 +146,7 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
   behavior of "SemanticDbReader.findSimplifiedGraphTo"
 
   it should "provide the simplified graph to a SUT (collapse methods and fields)) " in {
-    new SemanticDbReader(documentsalphabet).findSimplifiedGraphTo(
+    new SemanticDbReader(documentsalphabet).findTypeGraphTo(
       "com/marimon/semantic/samples/alphabet/I#"
     ) should contain theSameElementsAs Set(
       Edge(from = Node("com/marimon/semantic/samples/alphabet/OtherClass#"), to = Node("com/marimon/semantic/samples/alphabet/I#")),
@@ -145,7 +154,7 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "provide the simplified graph to a SUT (collapse methods and fields) with multiple levels) " in {
-    new SemanticDbReader(documentsdeep).findSimplifiedGraphTo(
+    new SemanticDbReader(documentsdeep).findTypeGraphTo(
       "com/marimon/semantic/samples/deep/ID#"
     ) should contain theSameElementsAs Set(
       Edge(from = Node("com/marimon/semantic/samples/deep/Classroom#"), to = Node("com/marimon/semantic/samples/deep/ID#")),
@@ -160,6 +169,7 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
   // -------------------------------------------------------------------------------------
   behavior of "SemanticDbReader.findDependenciesWithMetadata"
 
+  // TODO: implement
   it should "find dependencies with the source metadata (originating file)" ignore {}
 
 

@@ -21,7 +21,7 @@ class PricingSemanticDbReaderSpec extends AnyFlatSpec with Matchers {
     /**
      * contains all deps including all dependency steps (class to method to argument to class to...)
      */
-    val usages = reader.findSimplifiedGraphTo(
+    val usages = reader.findTypeGraphTo(
       "com/hopper/common/model/api/Paris.Pricing#"
     )
 

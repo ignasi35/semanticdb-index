@@ -141,39 +141,50 @@ class SemanticDbReader(val documents: Array[TextDocuments]) {
     dependenciesInDoc
   }.toSet.map(Edge.apply)
 
-  private lazy val codeGraph: DirectedGraph = DirectedGraph(edges)
+  /** A graph of howtype signatures (types, fields and methods) depend on each other */
+  private lazy val signatureGraph: DirectedGraph = DirectedGraph(edges)
 
   /**
    * Builds a list of methods, types and fields whose signature depends on `sut`
    */
   def findSignatureDependencies(sut: String) : Set[String]  = {
-    println(s"""Searching signature dependencies of $sut in a graph with ${codeGraph.edges.size} edges""")
-    codeGraph.dependantsOf(sut)
+    println(s"""Searching signature dependencies of $sut in a graph with ${signatureGraph.edges.size} edges""")
+    signatureGraph.dependantsOf(sut)
   }
 
-  def findDependenciesWithMetadata(sut: String) :(Set[String], Set[Path]) = {
+  /**
+   * Builds a list of methods, types and fields whose signature depends on `sut` with extra metadata
+   */
+  def findSignatureDependenciesWithMetadata(sut: String) :(Set[String], Set[Path]) = {
     val usages = findSignatureDependencies(sut)
     val sourcePaths = usages.map(reverseReference).toSet
     (usages, sourcePaths)
   }
 
-
-  def findGraphTo(sut: String): Set[Edge] = {
-    codeGraph.graphTo(sut)
+  /**
+   * @return the complete signaturesGraph to the `sut` provided
+   */
+  def findSignatureGraphTo(sut: String): Set[Edge] = {
+    signatureGraph.graphTo(sut)
   }
 
-  def findSimplifiedGraphTo(sut: String): Set[Edge] = {
-    val fullGraph = codeGraph.graphTo(sut)
+  /**
+   * @return a collapsed signaturesGraph (only contains types) to the `sut` provided
+   */
+  def findTypeGraphTo(sut: String): Set[Edge] = {
+    def isTypeName(sut: String): Boolean = sut.endsWith("#")
+    def isType(sut: Node): Boolean = isTypeName(sut.name)
+    require(isTypeName(sut))
+
+    val fullGraph = signatureGraph.graphTo(sut)
     val indexedGraph: Map[Node, Set[Edge]] = fullGraph.groupBy(_.from)
 
-    def isType(sut: Node): Boolean = sut.name.endsWith("#")
 
     val typeEdges: Set[Edge] = fullGraph.filter(edge => isType(edge.from))
 
     /** Given a starting node point and a subgraph, returns a projection with
      * the edges from the starting node to the closest types. */
     def collapse(start: Node, intermediate: Node, indexGraph: Map[Node, Set[Edge]]): Set[Edge] = {
-      require(isType(start))
       indexGraph.get(intermediate).toList.flatten match {
         case Nil => Set.empty[Edge]
         case steps =>
@@ -189,7 +200,6 @@ class SemanticDbReader(val documents: Array[TextDocuments]) {
     }.foldLeft(Set.empty[Edge]){case (acc, more) => acc ++more}
 
   }
-
 
 }
 
