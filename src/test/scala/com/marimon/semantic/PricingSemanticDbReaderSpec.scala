@@ -16,22 +16,39 @@ class PricingSemanticDbReaderSpec extends AnyFlatSpec with Matchers {
   behavior of "SemanticDbReader"
 
   it should "locate upstream containers" in {
-    var reader = new SemanticDbReader(documents)
+    val reader = new SemanticDbReader(documents)
 
-    val (usages, sourcePaths) = reader.findUsageWithMetadata(
+    /**
+     * contains all deps including all dependency steps (class to method to argument to class to...)
+     */
+    val usages = reader.findSimplifiedGraphTo(
       "com/hopper/common/model/api/Paris.Pricing#"
     )
 
-    val projectNames = sourcePaths.map{ sourcePath =>
-      sourcePath.toString.replace(parentFolder, "").split("/").head
-    }
-
+    /**
+     * val sample: Nothing = null {
+A -> B;
+B -> C;
+}
+     */
     println(
       s"""
-         |Found ${usages.size} usages in projects:
-         |${projectNames.toSeq.sorted.mkString("\n - ")}
+         |digraph sample {
+         |${usages.map{edge => s"  \"${edge.from.name}\" -> \"${edge.to.name}\" ;"}.mkString("\n")}
+         |}
          |""".stripMargin)
 
+    //    val (usages, sourcePaths) = reader.findUsageWithMetadata(
+//      "com/hopper/common/model/api/Paris.Pricing#"
+//    )
+//    val projectNames = sourcePaths.map{ sourcePath =>
+//      sourcePath.toString.replace(parentFolder, "").split("/").head
+//    }
+//    println(
+//      s"""
+//         |Found ${usages.size} usages in projects:
+//         |${projectNames.toSeq.sorted.mkString("\n - ")}
+//         |""".stripMargin)
 
     usages should contain theSameElementsAs usages
   }

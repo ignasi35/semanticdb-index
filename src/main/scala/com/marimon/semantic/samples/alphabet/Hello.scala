@@ -20,3 +20,10 @@ object PotentialUsage {
 object PotentialReturn {
   def consumerSuper(): Alphabet = ???
 }
+
+class OtherClass() {
+  def usage(i:I):String = ???
+}
+class MainClass() {
+  def mainUsage() = new OtherClass().usage(null)
+}

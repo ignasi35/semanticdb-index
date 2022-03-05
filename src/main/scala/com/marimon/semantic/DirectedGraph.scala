@@ -11,8 +11,8 @@ object Edge {
 
 // I don't care about unconnected nodes. Anything that's not in an edge can be ignored ATM.
 case class DirectedGraph(edges: Set[Edge]){
-  // TODO: reimplement using memoization, colorings, etc. (make it efficient)
   def dependenciesOf(sut: String): Set[String] = {
+    // TODO: reimplement using memoization, colorings, etc. (make it efficient)
     val directDependencies: Set[String] = edges.filter(_.from.name == sut).map(_.to.name)
     directDependencies ++ directDependencies.flatMap(dependenciesOf)
   }
@@ -30,4 +30,13 @@ case class DirectedGraph(edges: Set[Edge]){
     dep0(Set(sut),  Set.empty)
 
   }
+
+  /**
+   * A collection of edges dependant on `sut`
+   */
+  def graphTo(sut: String): Set[Edge] = {
+    val d = dependantsOf(sut)
+    edges.filter(e => d.contains(e.from.name))
+  }
+
 }
