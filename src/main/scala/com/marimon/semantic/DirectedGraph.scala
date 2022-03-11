@@ -3,7 +3,10 @@ package com.marimon.semantic
 import scala.annotation.tailrec
 
 case class Node(name: String)
-case class Edge(from: Node, to: Node) // directed Edge
+// directed Edge
+case class Edge(from: Node, to: Node){
+  def reverse = Edge(to, from)
+}
 object Edge {
   def apply(from: String, to: String): Edge = Edge(Node(from), Node(to))
   def apply(edge: (String,String)): Edge = Edge(Node(edge._1), Node(edge._2))
@@ -22,7 +25,6 @@ case class DirectedGraph(edges: Set[Edge]){
       }
     }
     dep0(Set(sut),  Set.empty)
-
   }
 
   /**
@@ -33,4 +35,5 @@ case class DirectedGraph(edges: Set[Edge]){
     edges.filter(e => d.contains(e.from.name))
   }
 
+  def reverse: DirectedGraph = DirectedGraph(edges.map( _.reverse))
 }

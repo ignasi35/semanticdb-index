@@ -167,11 +167,20 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
   }
 
   // -------------------------------------------------------------------------------------
+  it should "provide the graph of Types from a SUT (anything needed to build that SUT)" in {
+    new SemanticDbReader(documentsdeep).findTypeGraphFrom(
+      "com/marimon/semantic/samples/deep/User#"
+    ) should contain theSameElementsAs Set(
+      Edge(from = Node("com/marimon/semantic/samples/deep/User#"), to = Node("com/marimon/semantic/samples/deep/PersonInfo#")),
+      Edge(from = Node("com/marimon/semantic/samples/deep/PersonInfo#"), to = Node("com/marimon/semantic/samples/deep/ID#")),
+      Edge(from = Node("com/marimon/semantic/samples/deep/PersonInfo#"), to = Node("com/marimon/semantic/samples/deep/Address#")),
+    )
+  }
+
+  // -------------------------------------------------------------------------------------
   behavior of "SemanticDbReader.findDependenciesWithMetadata"
 
   // TODO: implement
   it should "find dependencies with the source metadata (originating file)" ignore {}
-
-
 
 }

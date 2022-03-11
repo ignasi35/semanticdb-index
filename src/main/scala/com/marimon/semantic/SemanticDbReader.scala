@@ -27,25 +27,25 @@ class SemanticDbReader(val documents: Array[TextDocuments]) {
 
   private val textDocuments = documents.flatMap(_.documents)
 
-  private def typeName(t:Type): List[String] = {
+  private def typeName(t: Type): List[String] = {
     t match {
       case Type.Empty => Nil
-      case tr:TypeRef =>
+      case tr: TypeRef =>
         tr.typeArguments.toList match {
           case Nil => List(tr.symbol)
           case l => l.flatMap(typeName)
         }
-      case at:AnnotatedType => typeName(at.tpe)
+      case at: AnnotatedType => typeName(at.tpe)
       // untested
-      case st:SingleType => List(st.symbol)
-      case rt:RepeatedType => typeName(rt.tpe)
-      case et:ExistentialType => typeName(et.tpe)
-      case bnt:ByNameType => typeName(bnt.tpe)
-      case st:StructuralType => typeName(st.tpe)
-      case wt:WithType => wt.types.toList.flatMap(typeName)
-      case _:ConstantType => Nil
-      case tt:ThisType => List(tt.symbol)
-      case ut:UniversalType => typeName(ut.tpe)
+      case st: SingleType => List(st.symbol)
+      case rt: RepeatedType => typeName(rt.tpe)
+      case et: ExistentialType => typeName(et.tpe)
+      case bnt: ByNameType => typeName(bnt.tpe)
+      case st: StructuralType => typeName(st.tpe)
+      case wt: WithType => wt.types.toList.flatMap(typeName)
+      case _: ConstantType => Nil
+      case tt: ThisType => List(tt.symbol)
+      case ut: UniversalType => typeName(ut.tpe)
       // other return types
       //  IntersectionType(_), SuperType(_, _), UnionType(_)
       case _ => ???
@@ -72,9 +72,9 @@ class SemanticDbReader(val documents: Array[TextDocuments]) {
 
   private val ignoredAsFullName = ignored.map(_ + "().")
 
-  private lazy val reverseReference = mutable.Map.empty[String, Path]
+  private lazy val sourcesReference = mutable.Map.empty[String, Path]
 
-  private lazy val edges: Set[Edge] = textDocuments.flatMap{ doc =>
+  private lazy val edges: Set[Edge] = textDocuments.flatMap { doc =>
     val dependenciesInDoc: Seq[(String, String)] = doc.symbols.flatMap { symbol =>
       symbol.signature match {
         case ms: MethodSignature => {
@@ -104,9 +104,9 @@ class SemanticDbReader(val documents: Array[TextDocuments]) {
           //  In the case of `class Hello`, cs.declarations contains:
           //    ".../samples/Hello#foo()."
           val symlinks = cs.declarations.head.symlinks
-          symlinks.headOption.toSeq.flatMap{ head =>
+          symlinks.headOption.toSeq.flatMap { head =>
             // When it's a class
-            if(head.contains(("#"))) {
+            if (head.contains(("#"))) {
               symlinks.map { symlink => (symlink -> symlink.split("#")) }
                 .collect {
                   case (symlink, Array(className, methodName)) if !ignoredAsFullName.contains(methodName) =>
@@ -137,69 +137,44 @@ class SemanticDbReader(val documents: Array[TextDocuments]) {
     dependenciesInDoc
       .map(_._1)
       .toSet
-      .foreach(k => reverseReference.update(k, Paths.get(doc.uri)))
+      .foreach(k => sourcesReference.update(k, Paths.get(doc.uri)))
     dependenciesInDoc
   }.toSet.map(Edge.apply)
 
-  /** A graph of howtype signatures (types, fields and methods) depend on each other */
+  /** A graph of how type signatures (types, fields and methods) depend on each other */
   private lazy val signatureGraph: DirectedGraph = DirectedGraph(edges)
+  private lazy val reverseSignatureGraph = signatureGraph.reverse
+
+  // -----------------------------------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------------------------------
 
   /**
    * Builds a list of methods, types and fields whose signature depends on `sut`
    */
-  def findSignatureDependencies(sut: String) : Set[String]  = {
-    println(s"""Searching signature dependencies of $sut in a graph with ${signatureGraph.edges.size} edges""")
+  def findSignatureDependencies(sut: String): Set[String] = {
     signatureGraph.dependantsOf(sut)
   }
 
   /**
    * Builds a list of methods, types and fields whose signature depends on `sut` with extra metadata
    */
-  def findSignatureDependenciesWithMetadata(sut: String) :(Set[String], Set[Path]) = {
+  def findSignatureDependenciesWithMetadata(sut: String): (Set[String], Set[Path]) = {
     val usages = findSignatureDependencies(sut)
-    val sourcePaths = usages.map(reverseReference).toSet
+    val sourcePaths = usages.map(sourcesReference)
     (usages, sourcePaths)
   }
 
   /**
    * @return the complete signaturesGraph to the `sut` provided
    */
-  def findSignatureGraphTo(sut: String): Set[Edge] = {
-    signatureGraph.graphTo(sut)
-  }
+  def findSignatureGraphTo(sut: String): Set[Edge] = Ops.findSignatureGraph(sut, signatureGraph)
 
   /**
    * @return a collapsed signaturesGraph (only contains types) to the `sut` provided
    */
-  def findTypeGraphTo(sut: String): Set[Edge] = {
-    def isTypeName(sut: String): Boolean = sut.endsWith("#")
-    def isType(sut: Node): Boolean = isTypeName(sut.name)
-    require(isTypeName(sut))
-
-    val fullGraph = signatureGraph.graphTo(sut)
-    val indexedGraph: Map[Node, Set[Edge]] = fullGraph.groupBy(_.from)
-
-
-    val typeEdges: Set[Edge] = fullGraph.filter(edge => isType(edge.from))
-
-    /** Given a starting node point and a subgraph, returns a projection with
-     * the edges from the starting node to the closest types. */
-    def collapse(start: Node, intermediate: Node, indexGraph: Map[Node, Set[Edge]]): Set[Edge] = {
-      indexGraph.get(intermediate).toList.flatten match {
-        case Nil => Set.empty[Edge]
-        case steps =>
-          steps.foldLeft(Set.empty[Edge]){ case (acc, step) =>
-            if(isType(step.to)) acc + Edge(start, step.to)
-            else acc ++ collapse(start, step.to, indexGraph)
-          }
-      }
-    }
-
-    typeEdges.map(_.from).map{start =>
-      collapse(start, start, indexedGraph)
-    }.foldLeft(Set.empty[Edge]){case (acc, more) => acc ++more}
-
-  }
+  def findTypeGraphTo(sut: String): Set[Edge] = Ops.findTypeGraph(sut, signatureGraph)
+  def findTypeGraphFrom(sut: String): Set[Edge] = Ops.findTypeGraph(sut, reverseSignatureGraph).map(_.reverse)
 
 }
 
@@ -225,4 +200,44 @@ object SemanticDbReader {
 
   def load(folder:String): Array[TextDocuments] = load(Files.list(Paths.get(folder)))
 
+}
+
+
+private[semantic] object Ops {
+  def findSignatureGraph(sut: String, graph: DirectedGraph): Set[Edge] = graph.graphTo(sut)
+
+  /**
+   * @return a collapsed signaturesGraph (only contains types) to the `sut` provided
+   */
+  private[semantic] def findTypeGraph(sut: String, graph: DirectedGraph): Set[Edge] = {
+    def isTypeName(sut: String): Boolean = sut.endsWith("#")
+
+    def isType(sut: Node): Boolean = isTypeName(sut.name)
+
+    require(isTypeName(sut))
+
+    val fullGraph = graph.graphTo(sut)
+    val indexedGraph: Map[Node, Set[Edge]] = fullGraph.groupBy(_.from)
+
+
+    val typeEdges: Set[Edge] = fullGraph.filter(edge => isType(edge.from))
+
+    /** Given a starting node point and a subgraph, returns a projection with
+     * the edges from the starting node to the closest types. */
+    def collapse(start: Node, intermediate: Node, indexGraph: Map[Node, Set[Edge]]): Set[Edge] = {
+      indexGraph.get(intermediate).toList.flatten match {
+        case Nil => Set.empty[Edge]
+        case steps =>
+          steps.foldLeft(Set.empty[Edge]) { case (acc, step) =>
+            if (isType(step.to)) acc + Edge(start, step.to)
+            else acc ++ collapse(start, step.to, indexGraph)
+          }
+      }
+    }
+
+    typeEdges.map(_.from).map { start =>
+      collapse(start, start, indexedGraph)
+    }.foldLeft(Set.empty[Edge]) { case (acc, more) => acc ++ more }
+
+  }
 }
