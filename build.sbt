@@ -8,6 +8,7 @@ semanticdbEnabled := true
 semanticdbVersion := "4.4.31"
 
 // TODO : split main and experiments
+// TODO : split main and samples 
 
 lazy val root = (project in file("."))
   .settings(
