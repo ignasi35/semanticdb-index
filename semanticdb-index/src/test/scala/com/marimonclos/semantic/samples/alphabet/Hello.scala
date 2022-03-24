@@ -1,4 +1,4 @@
-package com.marimon.semantic.samples.alphabet
+package com.marimonclos.semantic.samples.alphabet
 
 trait A
 trait BA extends A {val unused :String}

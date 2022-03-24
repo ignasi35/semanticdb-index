@@ -1,5 +1,4 @@
-package com.marimon.semantic.samples.generified
-
+package com.marimonclos.semantic.samples.generified
 
 case class ID(id:String)
 case class Age(in:Int)

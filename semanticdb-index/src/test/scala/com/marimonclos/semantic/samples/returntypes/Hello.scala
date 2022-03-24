@@ -1,4 +1,4 @@
-package com.marimon.semantic.samples.returntypes
+package com.marimonclos.semantic.samples.returntypes
 
 trait ReturnTypeInDef
 trait ReturnTypeInVal

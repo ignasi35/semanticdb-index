@@ -1,4 +1,4 @@
-package com.marimon.semantic.samples.deep
+package com.marimonclos.semantic.samples.deep
 
 case class ID(id:String)
 

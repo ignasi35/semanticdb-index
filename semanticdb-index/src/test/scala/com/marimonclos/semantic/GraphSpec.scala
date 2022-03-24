@@ -1,4 +1,4 @@
-package com.marimon.semantic
+package com.marimonclos.semantic
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers

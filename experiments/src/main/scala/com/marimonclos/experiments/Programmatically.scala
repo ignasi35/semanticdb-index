@@ -1,4 +1,4 @@
-package com.marimon.experiments
+package com.marimonclos.experiments
 
 import scala.reflect.runtime.currentMirror
 import scala.tools.reflect.ToolBox
