@@ -1,16 +1,15 @@
 package com.marimonclos.semantic.samples.deep
 
-case class ID(id:String)
+case class ID(id: String)
 
-
-case class Address(street:String, number: Int)
+case class Address(street: String, number: Int)
 case class PersonInfo(id: ID, name: String, address: List[Address])
 
-trait User{
+trait User {
   val person: Option[PersonInfo]
 }
-trait Teacher{
+trait Teacher {
   val person: Option[PersonInfo]
 }
 
-case class Classroom(id:ID, teacher: Teacher, users: Seq[User])
+case class Classroom(id: ID, teacher: Teacher, users: Seq[User])
