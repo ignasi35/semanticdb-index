@@ -1,12 +1,14 @@
 package com.marimonclos.semantic
 
+import java.io.File
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import scala.meta.internal.semanticdb.TextDocuments
 
 class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
 
-  private val baseFolder = "/Users/imarimon/git/github/ignasi35/semanticdb-index/semanticdb-index/target/scala-2.13/test-meta/META-INF/semanticdb/semanticdb-index/src/test/scala/com/marimonclos/semantic/samples"
+  private val baseFolder = new File(".", "semanticdb-index/target/scala-2.13/test-meta/META-INF/semanticdb/semanticdb-index/src/test/scala/com/marimonclos/semantic/samples").getAbsolutePath
+
   private val foobarbaz = baseFolder+"/foobarbaz"
   private val returntypes = baseFolder+"/returntypes"
   private val alphabet = baseFolder+"/alphabet"
