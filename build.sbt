@@ -1,4 +1,5 @@
 import Dependencies._
+import xerial.sbt.Sonatype.autoImport.sonatypeRepository
 
 ThisBuild / scalaVersion := Versions.scalaVersion
 ThisBuild / organization := "com.marimon"
@@ -37,9 +38,8 @@ ThisBuild / githubWorkflowPublish := Seq(
     )
 )
 
-sonatypeCredentialHost := "s01.oss.sonatype.org"
-sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
-
+ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
+ThisBuild / sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 // - - - Project setup - - -
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -48,7 +48,7 @@ ThisBuild / versionScheme := Some("early-semver")
 
 lazy val root = (project in file("."))
   .settings(
-    publish / skip := true
+    publish / skip := true,
   ).aggregate(
     `semanticdb-index`,
     experiments
