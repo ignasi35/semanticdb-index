@@ -1,4 +1,4 @@
-package com.marimon.semantic.samples.foobarbaz
+package com.marimonclos.semantic.samples.foobarbaz
 
 case class Rocket(i:Int, s:String)
 case class Bar(i:Int, s:String)

@@ -1,4 +1,4 @@
-package com.marimon.semantic
+package com.marimonclos.semantic
 
 import scala.annotation.tailrec
 

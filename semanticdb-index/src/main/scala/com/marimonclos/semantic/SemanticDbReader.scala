@@ -1,4 +1,4 @@
-package com.marimon.semantic
+package com.marimonclos.semantic
 
 import java.io.FileInputStream
 import java.nio.file.Files
