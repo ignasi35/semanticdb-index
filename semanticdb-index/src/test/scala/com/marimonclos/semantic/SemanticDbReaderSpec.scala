@@ -6,9 +6,7 @@ import scala.meta.internal.semanticdb.TextDocuments
 
 class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
 
-  private val baseFolder =
-    "/Users/imarimon/git/github/ignasi35/semanticdb-index/semanticdb-index/target/scala-2.13/meta/META-INF/semanticdb/src/main/scala/com/marimonclos/semantic/samples"
-    "/Users/imarimon/git/github/ignasi35/semanticdb-index/semanticdb-index/target/scala-2.13/meta/META-INF/semanticdb/semanticdb-index/src/main/scala/com/marimonclos/semantic/samples/foobarbaz"
+  private val baseFolder = "/Users/imarimon/git/github/ignasi35/semanticdb-index/semanticdb-index/target/scala-2.13/test-meta/META-INF/semanticdb/semanticdb-index/src/test/scala/com/marimonclos/semantic/samples"
   private val foobarbaz = baseFolder+"/foobarbaz"
   private val returntypes = baseFolder+"/returntypes"
   private val alphabet = baseFolder+"/alphabet"
