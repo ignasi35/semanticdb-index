@@ -7,19 +7,26 @@ import scala.meta.internal.semanticdb.TextDocuments
 
 class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
 
-  private val baseFolder = new File(".", "semanticdb-index/target/scala-2.13/test-meta/META-INF/semanticdb/semanticdb-index/src/test/scala/com/marimonclos/semantic/samples").getAbsolutePath
+  private val baseFolder = new File(
+    ".",
+    "semanticdb-index/target/scala-2.13/test-meta/META-INF/semanticdb/semanticdb-index/src/test/scala/com/marimonclos/semantic/samples"
+  ).getAbsolutePath
 
-  private val foobarbaz = baseFolder+"/foobarbaz"
-  private val returntypes = baseFolder+"/returntypes"
-  private val alphabet = baseFolder+"/alphabet"
-  private val deep = baseFolder+"/deep"
-  private val generified = baseFolder+"/generified"
+  private val foobarbaz = baseFolder + "/foobarbaz"
+  private val returntypes = baseFolder + "/returntypes"
+  private val alphabet = baseFolder + "/alphabet"
+  private val deep = baseFolder + "/deep"
+  private val generified = baseFolder + "/generified"
 
-  private val documentsfoobarbaz: Array[TextDocuments] = SemanticDbReader.load(foobarbaz)
-  private val documentsreturntypes: Array[TextDocuments] = SemanticDbReader.load(returntypes)
-  private val documentsalphabet: Array[TextDocuments] = SemanticDbReader.load(alphabet)
+  private val documentsfoobarbaz: Array[TextDocuments] =
+    SemanticDbReader.load(foobarbaz)
+  private val documentsreturntypes: Array[TextDocuments] =
+    SemanticDbReader.load(returntypes)
+  private val documentsalphabet: Array[TextDocuments] =
+    SemanticDbReader.load(alphabet)
   private val documentsdeep: Array[TextDocuments] = SemanticDbReader.load(deep)
-  private val documentsGenerified: Array[TextDocuments] = SemanticDbReader.load(generified)
+  private val documentsGenerified: Array[TextDocuments] =
+    SemanticDbReader.load(generified)
 
   behavior of "SemanticDbReader.findSignatureDependencies"
 
@@ -41,36 +48,36 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
   it should "locate explicit return type of a def" in {
     new SemanticDbReader(documentsreturntypes).findSignatureDependencies(
       "com/marimonclos/semantic/samples/returntypes/ReturnTypeInDef#"
-    )should contain theSameElementsAs Set(
+    ) should contain theSameElementsAs Set(
       "com/marimonclos/semantic/samples/returntypes/UsageTrait#",
       "com/marimonclos/semantic/samples/returntypes/UsageTrait#aDef().",
       "com/marimonclos/semantic/samples/returntypes/UsageObject.",
       "com/marimonclos/semantic/samples/returntypes/UsageObject.aDef().",
       "com/marimonclos/semantic/samples/returntypes/UsageClass#",
-      "com/marimonclos/semantic/samples/returntypes/UsageClass#aDef().",
+      "com/marimonclos/semantic/samples/returntypes/UsageClass#aDef()."
     )
   }
 
   it should "locate explicit type of a val" in {
     new SemanticDbReader(documentsreturntypes).findSignatureDependencies(
       "com/marimonclos/semantic/samples/returntypes/ReturnTypeInVal#"
-    )should contain theSameElementsAs Set(
+    ) should contain theSameElementsAs Set(
       "com/marimonclos/semantic/samples/returntypes/UsageTrait#x.",
       "com/marimonclos/semantic/samples/returntypes/UsageTrait#",
       "com/marimonclos/semantic/samples/returntypes/UsageObject.x.",
       "com/marimonclos/semantic/samples/returntypes/UsageObject.",
       "com/marimonclos/semantic/samples/returntypes/UsageClass#x.",
-      "com/marimonclos/semantic/samples/returntypes/UsageClass#",
+      "com/marimonclos/semantic/samples/returntypes/UsageClass#"
     )
   }
 
   it should "locate direct usages" in {
     new SemanticDbReader(documentsalphabet).findSignatureDependencies(
       "com/marimonclos/semantic/samples/alphabet/KI#"
-    )should contain theSameElementsAs Set(
+    ) should contain theSameElementsAs Set(
       "com/marimonclos/semantic/samples/alphabet/DirectUsage.directKi().(ki)",
       "com/marimonclos/semantic/samples/alphabet/DirectUsage.directKi().",
-      "com/marimonclos/semantic/samples/alphabet/DirectUsage.",
+      "com/marimonclos/semantic/samples/alphabet/DirectUsage."
     )
   }
 
@@ -78,13 +85,13 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
   it should "locate potential usages (PECS!) - trait&subclass" ignore {
     new SemanticDbReader(documentsalphabet).findSignatureDependencies(
       "com/marimonclos/semantic/samples/alphabet/A#"
-    )should contain theSameElementsAs Set(
+    ) should contain theSameElementsAs Set(
       "com/marimonclos/semantic/samples/alphabet/PotentialUsage.producerExtends().(a)",
       "com/marimonclos/semantic/samples/alphabet/PotentialUsage.producerExtends().",
       "com/marimonclos/semantic/samples/alphabet/PotentialUsage.",
       "com/marimonclos/semantic/samples/alphabet/DirectUsage.directCa().(ca)",
       "com/marimonclos/semantic/samples/alphabet/DirectUsage.directCa().",
-      "com/marimonclos/semantic/samples/alphabet/DirectUsage.",
+      "com/marimonclos/semantic/samples/alphabet/DirectUsage."
     )
   }
 
@@ -100,10 +107,9 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
       "com/marimonclos/semantic/samples/generified/PersonInfo#",
       "com/marimonclos/semantic/samples/generified/PersonInfo#address.",
       "com/marimonclos/semantic/samples/generified/User#",
-      "com/marimonclos/semantic/samples/generified/User#person.",
+      "com/marimonclos/semantic/samples/generified/User#person."
     )
   }
-
 
   // TODO: re-assess this idea. I think I need a different graph of invocations, pattern matchings and other cases.
   // If I want to detect when some code in a class X invokes a method on object Y, as in:
@@ -117,7 +123,7 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
   it should "ignore invocations and instantiations" ignore {
     new SemanticDbReader(documentsalphabet).findSignatureDependencies(
       "com/marimonclos/semantic/samples/alphabet/I#"
-    )should contain theSameElementsAs Set(
+    ) should contain theSameElementsAs Set(
       "com/marimonclos/semantic/samples/alphabet/OtherClass#usage().(i)",
       "com/marimonclos/semantic/samples/alphabet/OtherClass#usage().",
       "com/marimonclos/semantic/samples/alphabet/OtherClass#"
@@ -137,12 +143,26 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
     new SemanticDbReader(documentsalphabet).findSignatureGraphTo(
       "com/marimonclos/semantic/samples/alphabet/I#"
     ) should contain theSameElementsAs Set(
-      Edge(from = Node("com/marimonclos/semantic/samples/alphabet/OtherClass#usage().(i)") , to = Node("com/marimonclos/semantic/samples/alphabet/I#")),
-      Edge(from = Node("com/marimonclos/semantic/samples/alphabet/OtherClass#usage().") , to = Node("com/marimonclos/semantic/samples/alphabet/OtherClass#usage().(i)")),
-      Edge(from = Node("com/marimonclos/semantic/samples/alphabet/OtherClass#") , to = Node("com/marimonclos/semantic/samples/alphabet/OtherClass#usage().")),
+      Edge(
+        from = Node(
+          "com/marimonclos/semantic/samples/alphabet/OtherClass#usage().(i)"
+        ),
+        to = Node("com/marimonclos/semantic/samples/alphabet/I#")
+      ),
+      Edge(
+        from =
+          Node("com/marimonclos/semantic/samples/alphabet/OtherClass#usage()."),
+        to = Node(
+          "com/marimonclos/semantic/samples/alphabet/OtherClass#usage().(i)"
+        )
+      ),
+      Edge(
+        from = Node("com/marimonclos/semantic/samples/alphabet/OtherClass#"),
+        to =
+          Node("com/marimonclos/semantic/samples/alphabet/OtherClass#usage().")
+      )
     )
   }
-
 
   // -------------------------------------------------------------------------------------
   behavior of "SemanticDbReader.findSimplifiedGraphTo"
@@ -151,7 +171,10 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
     new SemanticDbReader(documentsalphabet).findTypeGraphTo(
       "com/marimonclos/semantic/samples/alphabet/I#"
     ) should contain theSameElementsAs Set(
-      Edge(from = Node("com/marimonclos/semantic/samples/alphabet/OtherClass#"), to = Node("com/marimonclos/semantic/samples/alphabet/I#")),
+      Edge(
+        from = Node("com/marimonclos/semantic/samples/alphabet/OtherClass#"),
+        to = Node("com/marimonclos/semantic/samples/alphabet/I#")
+      )
     )
   }
 
@@ -159,12 +182,30 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
     new SemanticDbReader(documentsdeep).findTypeGraphTo(
       "com/marimonclos/semantic/samples/deep/ID#"
     ) should contain theSameElementsAs Set(
-      Edge(from = Node("com/marimonclos/semantic/samples/deep/Classroom#"), to = Node("com/marimonclos/semantic/samples/deep/ID#")),
-      Edge(from = Node("com/marimonclos/semantic/samples/deep/Classroom#"), to = Node("com/marimonclos/semantic/samples/deep/Teacher#")),
-      Edge(from = Node("com/marimonclos/semantic/samples/deep/Classroom#"), to = Node("com/marimonclos/semantic/samples/deep/User#")),
-      Edge(from = Node("com/marimonclos/semantic/samples/deep/PersonInfo#"), to = Node("com/marimonclos/semantic/samples/deep/ID#")),
-      Edge(from = Node("com/marimonclos/semantic/samples/deep/Teacher#"), to = Node("com/marimonclos/semantic/samples/deep/PersonInfo#")),
-      Edge(from = Node("com/marimonclos/semantic/samples/deep/User#"), to = Node("com/marimonclos/semantic/samples/deep/PersonInfo#")),
+      Edge(
+        from = Node("com/marimonclos/semantic/samples/deep/Classroom#"),
+        to = Node("com/marimonclos/semantic/samples/deep/ID#")
+      ),
+      Edge(
+        from = Node("com/marimonclos/semantic/samples/deep/Classroom#"),
+        to = Node("com/marimonclos/semantic/samples/deep/Teacher#")
+      ),
+      Edge(
+        from = Node("com/marimonclos/semantic/samples/deep/Classroom#"),
+        to = Node("com/marimonclos/semantic/samples/deep/User#")
+      ),
+      Edge(
+        from = Node("com/marimonclos/semantic/samples/deep/PersonInfo#"),
+        to = Node("com/marimonclos/semantic/samples/deep/ID#")
+      ),
+      Edge(
+        from = Node("com/marimonclos/semantic/samples/deep/Teacher#"),
+        to = Node("com/marimonclos/semantic/samples/deep/PersonInfo#")
+      ),
+      Edge(
+        from = Node("com/marimonclos/semantic/samples/deep/User#"),
+        to = Node("com/marimonclos/semantic/samples/deep/PersonInfo#")
+      )
     )
   }
 
@@ -173,9 +214,18 @@ class SemanticDbReaderSpec extends AnyFlatSpec with Matchers {
     new SemanticDbReader(documentsdeep).findTypeGraphFrom(
       "com/marimonclos/semantic/samples/deep/User#"
     ) should contain theSameElementsAs Set(
-      Edge(from = Node("com/marimonclos/semantic/samples/deep/User#"), to = Node("com/marimonclos/semantic/samples/deep/PersonInfo#")),
-      Edge(from = Node("com/marimonclos/semantic/samples/deep/PersonInfo#"), to = Node("com/marimonclos/semantic/samples/deep/ID#")),
-      Edge(from = Node("com/marimonclos/semantic/samples/deep/PersonInfo#"), to = Node("com/marimonclos/semantic/samples/deep/Address#")),
+      Edge(
+        from = Node("com/marimonclos/semantic/samples/deep/User#"),
+        to = Node("com/marimonclos/semantic/samples/deep/PersonInfo#")
+      ),
+      Edge(
+        from = Node("com/marimonclos/semantic/samples/deep/PersonInfo#"),
+        to = Node("com/marimonclos/semantic/samples/deep/ID#")
+      ),
+      Edge(
+        from = Node("com/marimonclos/semantic/samples/deep/PersonInfo#"),
+        to = Node("com/marimonclos/semantic/samples/deep/Address#")
+      )
     )
   }
 

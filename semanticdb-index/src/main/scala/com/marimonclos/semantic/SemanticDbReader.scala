@@ -33,115 +33,148 @@ class SemanticDbReader(val documents: Array[TextDocuments]) {
       case tr: TypeRef =>
         tr.typeArguments.toList match {
           case Nil => List(tr.symbol)
-          case l => l.flatMap(typeName)
+          case l   => l.flatMap(typeName)
         }
       case at: AnnotatedType => typeName(at.tpe)
       // untested
-      case st: SingleType => List(st.symbol)
-      case rt: RepeatedType => typeName(rt.tpe)
+      case st: SingleType      => List(st.symbol)
+      case rt: RepeatedType    => typeName(rt.tpe)
       case et: ExistentialType => typeName(et.tpe)
-      case bnt: ByNameType => typeName(bnt.tpe)
-      case st: StructuralType => typeName(st.tpe)
-      case wt: WithType => wt.types.toList.flatMap(typeName)
-      case _: ConstantType => Nil
-      case tt: ThisType => List(tt.symbol)
-      case ut: UniversalType => typeName(ut.tpe)
+      case bnt: ByNameType     => typeName(bnt.tpe)
+      case st: StructuralType  => typeName(st.tpe)
+      case wt: WithType        => wt.types.toList.flatMap(typeName)
+      case _: ConstantType     => Nil
+      case tt: ThisType        => List(tt.symbol)
+      case ut: UniversalType   => typeName(ut.tpe)
       // other return types
       //  IntersectionType(_), SuperType(_, _), UnionType(_)
       case _ => ???
     }
   }
 
-  private val ignored = Set("equals", "hashCode", "toString", "getClass", "notify",
-    "notifyAll", "wait", "copy", "clone", "finalize", "productArity", "productElement",
-    "writeReplace", "unapply", "canEqual", "productPrefix", "productIterator", "productElementName",
+  private val ignored = Set(
+    "equals",
+    "hashCode",
+    "toString",
+    "getClass",
+    "notify",
+    "notifyAll",
+    "wait",
+    "copy",
+    "clone",
+    "finalize",
+    "productArity",
+    "productElement",
+    "writeReplace",
+    "unapply",
+    "canEqual",
+    "productPrefix",
+    "productIterator",
+    "productElementName",
     "isEqualTo",
-    "apply", "<init>", "`<init>`"
+    "apply",
+    "<init>",
+    "`<init>`"
   ) ++ (
     (0 to 20).map(i => s"local$i").toSet
-    ) ++ (
-    (1 to 25).flatMap(i => Set(
-      s"copy$$default$$$i",
-      s"`<init>$$default$$$i`",
-      s"<init>$$default$$$i",
-      s"apply$$default$$$i",
-      s"create$$default$$$i",
+  ) ++ (
+    (1 to 25).flatMap(i =>
+      Set(
+        s"copy$$default$$$i",
+        s"`<init>$$default$$$i`",
+        s"<init>$$default$$$i",
+        s"apply$$default$$$i",
+        s"create$$default$$$i"
+      )
     )
-    )
-    )
+  )
 
   private val ignoredAsFullName = ignored.map(_ + "().")
 
   private lazy val sourcesReference = mutable.Map.empty[String, Path]
 
-  private lazy val edges: Set[Edge] = textDocuments.flatMap { doc =>
-    val dependenciesInDoc: Seq[(String, String)] = doc.symbols.flatMap { symbol =>
-      symbol.signature match {
-        case ms: MethodSignature => {
-          val methodName = symbol.symbol
-          val displayName = symbol.displayName
-          if (ignored.contains(displayName) || ignored.contains(methodName) || methodName.matches("local[0-9+]*")) {
-            // Sometimes the signature has a methodName of `local<number>` and other reserved names. I'm filtering
-            // them all. Usually not too relevant. There's also `local27+1` or `local27+2` or ...
-            Seq.empty
-          } else {
-            val returnTypeDep: List[(String, String)] =
-              typeName(ms.returnType)
-                .map(returnType => (methodName -> returnType))
+  private lazy val edges: Set[Edge] = textDocuments
+    .flatMap { doc =>
+      val dependenciesInDoc: Seq[(String, String)] = doc.symbols
+        .flatMap { symbol =>
+          symbol.signature match {
+            case ms: MethodSignature => {
+              val methodName = symbol.symbol
+              val displayName = symbol.displayName
+              if (
+                ignored.contains(displayName) || ignored.contains(
+                  methodName
+                ) || methodName.matches("local[0-9+]*")
+              ) {
+                // Sometimes the signature has a methodName of `local<number>` and other reserved names. I'm filtering
+                // them all. Usually not too relevant. There's also `local27+1` or `local27+2` or ...
+                Seq.empty
+              } else {
+                val returnTypeDep: List[(String, String)] =
+                  typeName(ms.returnType)
+                    .map(returnType => (methodName -> returnType))
 
-            val parametersDep: Seq[(String, String)] =
-              ms
-                .parameterLists
-                .flatMap { scope =>
-                  val symlinks = scope.symlinks
-                  symlinks.map(link => (methodName -> link))
+                val parametersDep: Seq[(String, String)] =
+                  ms.parameterLists
+                    .flatMap { scope =>
+                      val symlinks = scope.symlinks
+                      symlinks.map(link => (methodName -> link))
+                    }
+                // A methods depends on the types of the arguments and the type of the return value
+                parametersDep :++ returnTypeDep
+              }
+            }
+            case cs: ClassSignature =>
+              //  In the case of `class Hello`, cs.declarations contains:
+              //    ".../samples/Hello#foo()."
+              val symlinks = cs.declarations.head.symlinks
+              symlinks.headOption.toSeq.flatMap { head =>
+                // When it's a class
+                if (head.contains(("#"))) {
+                  symlinks
+                    .map { symlink => (symlink -> symlink.split("#")) }
+                    .collect {
+                      case (symlink, Array(className, methodName))
+                          if !ignoredAsFullName.contains(methodName) =>
+                        (s"$className#" -> symlink)
+                    }
+                } else {
+                  // When it's an object
+                  symlinks
+                    .map { symlink => (symlink -> symlink.split("\\.", 2)) }
+                    .collect {
+                      case (symlink, Array(className, methodName))
+                          if !ignoredAsFullName.contains(methodName) =>
+                        (s"$className." -> symlink)
+                    }
                 }
-            // A methods depends on the types of the arguments and the type of the return value
-            parametersDep :++ returnTypeDep
+              }
+            case vs: ValueSignature => // method params also enter this branch
+              val valueName = symbol.symbol
+              if (ignored.exists(valueName.contains)) {
+                Seq.empty
+              } else {
+                typeName(vs.tpe).map(valueType => (valueName -> valueType))
+              }
+            // case ts: TypeSignature => ???
+            case _ => Seq.empty
           }
         }
-        case cs: ClassSignature =>
-          //  In the case of `class Hello`, cs.declarations contains:
-          //    ".../samples/Hello#foo()."
-          val symlinks = cs.declarations.head.symlinks
-          symlinks.headOption.toSeq.flatMap { head =>
-            // When it's a class
-            if (head.contains(("#"))) {
-              symlinks.map { symlink => (symlink -> symlink.split("#")) }
-                .collect {
-                  case (symlink, Array(className, methodName)) if !ignoredAsFullName.contains(methodName) =>
-                    (s"$className#" -> symlink)
-                }
-            } else {
-              // When it's an object
-              symlinks.map { symlink => (symlink -> symlink.split("\\.", 2)) }
-                .collect {
-                  case (symlink, Array(className, methodName)) if !ignoredAsFullName.contains(methodName) =>
-                    (s"$className." -> symlink)
-                }
-            }
-          }
-        case vs: ValueSignature => // method params also enter this branch
-          val valueName = symbol.symbol
-          if (ignored.exists(valueName.contains)) {
-            Seq.empty
-          } else {
-            typeName(vs.tpe).map(valueType =>
-              (valueName -> valueType)
-            )
-          }
-        // case ts: TypeSignature => ???
-        case _ => Seq.empty
-      }
-    }.filter(!_._2.startsWith("scala/")) // I don't care about "scala/Nothing", "scala/Unit", Int,...
-    dependenciesInDoc
-      .map(_._1)
-      .toSet
-      .foreach(k => sourcesReference.update(k, Paths.get(doc.uri)))
-    dependenciesInDoc
-  }.toSet.map(Edge.apply)
+        .filter(
+          !_._2.startsWith("scala/")
+        ) // I don't care about "scala/Nothing", "scala/Unit", Int,...
+      dependenciesInDoc
+        .map(_._1)
+        .toSet
+        .foreach(k => sourcesReference.update(k, Paths.get(doc.uri)))
+      dependenciesInDoc
+    }
+    .toSet
+    .map(Edge.apply)
 
-  /** A graph of how type signatures (types, fields and methods) depend on each other */
+  /** A graph of how type signatures (types, fields and methods) depend on each
+    * other
+    */
   private lazy val signatureGraph: DirectedGraph = DirectedGraph(edges)
   private lazy val reverseSignatureGraph = signatureGraph.reverse
 
@@ -149,32 +182,37 @@ class SemanticDbReader(val documents: Array[TextDocuments]) {
   // -----------------------------------------------------------------------------------------------------
   // -----------------------------------------------------------------------------------------------------
 
-  /**
-   * Builds a list of methods, types and fields whose signature depends on `sut`
-   */
+  /** Builds a list of methods, types and fields whose signature depends on
+    * `sut`
+    */
   def findSignatureDependencies(sut: String): Set[String] = {
     signatureGraph.dependantsOf(sut)
   }
 
-  /**
-   * Builds a list of methods, types and fields whose signature depends on `sut` with extra metadata
-   */
-  def findSignatureDependenciesWithMetadata(sut: String): (Set[String], Set[Path]) = {
+  /** Builds a list of methods, types and fields whose signature depends on
+    * `sut` with extra metadata
+    */
+  def findSignatureDependenciesWithMetadata(
+      sut: String
+  ): (Set[String], Set[Path]) = {
     val usages = findSignatureDependencies(sut)
     val sourcePaths = usages.map(sourcesReference)
     (usages, sourcePaths)
   }
 
-  /**
-   * @return the complete signaturesGraph to the `sut` provided
-   */
-  def findSignatureGraphTo(sut: String): Set[Edge] = Ops.findSignatureGraph(sut, signatureGraph)
+  /** @return
+    *   the complete signaturesGraph to the `sut` provided
+    */
+  def findSignatureGraphTo(sut: String): Set[Edge] =
+    Ops.findSignatureGraph(sut, signatureGraph)
 
-  /**
-   * @return a collapsed signaturesGraph (only contains types) to the `sut` provided
-   */
-  def findTypeGraphTo(sut: String): Set[Edge] = Ops.findTypeGraph(sut, signatureGraph)
-  def findTypeGraphFrom(sut: String): Set[Edge] = Ops.findTypeGraph(sut, reverseSignatureGraph).map(_.reverse)
+  /** @return
+    *   a collapsed signaturesGraph (only contains types) to the `sut` provided
+    */
+  def findTypeGraphTo(sut: String): Set[Edge] =
+    Ops.findTypeGraph(sut, signatureGraph)
+  def findTypeGraphFrom(sut: String): Set[Edge] =
+    Ops.findTypeGraph(sut, reverseSignatureGraph).map(_.reverse)
 
 }
 
@@ -192,24 +230,30 @@ object SemanticDbReader {
         .toArray
     files.map(file => {
       TextDocuments.parseFrom(new FileInputStream(file))
-    }
-    )
+    })
   }
 
-  def loadRecursively(folder:String): Array[TextDocuments] = load(Files.walk(Paths.get(folder)))
+  def loadRecursively(folder: String): Array[TextDocuments] = load(
+    Files.walk(Paths.get(folder))
+  )
 
-  def load(folder:String): Array[TextDocuments] = load(Files.list(Paths.get(folder)))
+  def load(folder: String): Array[TextDocuments] = load(
+    Files.list(Paths.get(folder))
+  )
 
 }
 
-
 private[semantic] object Ops {
-  def findSignatureGraph(sut: String, graph: DirectedGraph): Set[Edge] = graph.graphTo(sut)
+  def findSignatureGraph(sut: String, graph: DirectedGraph): Set[Edge] =
+    graph.graphTo(sut)
 
-  /**
-   * @return a collapsed signaturesGraph (only contains types) to the `sut` provided
-   */
-  private[semantic] def findTypeGraph(sut: String, graph: DirectedGraph): Set[Edge] = {
+  /** @return
+    *   a collapsed signaturesGraph (only contains types) to the `sut` provided
+    */
+  private[semantic] def findTypeGraph(
+      sut: String,
+      graph: DirectedGraph
+  ): Set[Edge] = {
     def isTypeName(sut: String): Boolean = sut.endsWith("#")
 
     def isType(sut: Node): Boolean = isTypeName(sut.name)
@@ -219,12 +263,16 @@ private[semantic] object Ops {
     val fullGraph = graph.graphTo(sut)
     val indexedGraph: Map[Node, Set[Edge]] = fullGraph.groupBy(_.from)
 
-
     val typeEdges: Set[Edge] = fullGraph.filter(edge => isType(edge.from))
 
     /** Given a starting node point and a subgraph, returns a projection with
-     * the edges from the starting node to the closest types. */
-    def collapse(start: Node, intermediate: Node, indexGraph: Map[Node, Set[Edge]]): Set[Edge] = {
+      * the edges from the starting node to the closest types.
+      */
+    def collapse(
+        start: Node,
+        intermediate: Node,
+        indexGraph: Map[Node, Set[Edge]]
+    ): Set[Edge] = {
       indexGraph.get(intermediate).toList.flatten match {
         case Nil => Set.empty[Edge]
         case steps =>
@@ -235,9 +283,12 @@ private[semantic] object Ops {
       }
     }
 
-    typeEdges.map(_.from).map { start =>
-      collapse(start, start, indexedGraph)
-    }.foldLeft(Set.empty[Edge]) { case (acc, more) => acc ++ more }
+    typeEdges
+      .map(_.from)
+      .map { start =>
+        collapse(start, start, indexedGraph)
+      }
+      .foldLeft(Set.empty[Edge]) { case (acc, more) => acc ++ more }
 
   }
 }

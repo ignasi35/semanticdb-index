@@ -1,14 +1,14 @@
 package com.marimonclos.semantic.samples.alphabet
 
 trait A
-trait BA extends A {val unused :String}
-trait CA extends A {val unused :String}
+trait BA extends A { val unused: String }
+trait CA extends A { val unused: String }
 
 trait I
 trait JI extends I
 trait KI extends I
 
-trait Alphabet extends KI with CA {val unused :String}
+trait Alphabet extends KI with CA { val unused: String }
 
 object DirectUsage {
   def directCa(ca: CA) = ???
@@ -22,7 +22,7 @@ object PotentialReturn {
 }
 
 class OtherClass() {
-  def usage(i:I):String = ???
+  def usage(i: I): String = ???
 }
 class MainClass() {
   def mainUsage() = new OtherClass().usage(null)
